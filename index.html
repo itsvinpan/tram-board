@@ -2,53 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Düsseldorf Karolingerplatz Live Monitor</title>
     <style>
-        * { box-sizing: border-box; }
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            background-color: #000000; 
-            font-family: 'Courier New', Courier, monospace; 
-            overflow: hidden;
-        }
-        .split-container { display: flex; width: 100%; height: 100%; }
-        .direction-panel { width: 50%; height: 100%; display: flex; flex-direction: column; }
-        .panel-header {
-            background-color: #000; color: #ff9900; text-align: center;
-            padding: 18px; font-size: 2rem; font-weight: bold;
-            border-bottom: 4px solid #ff9900; letter-spacing: 1px;
-        }
-        iframe { width: 100%; flex-grow: 1; border: none; background-color: #000; }
-        #alexa-keepawake { position: absolute; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
+        body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; overflow: hidden; display: flex; height: 100vh; }
+        .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid #333; }
+        .header { text-align: center; font-size: 1.5rem; font-weight: bold; padding: 10px; border-bottom: 2px solid #ff9900; }
+        iframe { flex: 1; border: none; }
     </style>
 </head>
 <body>
-    <video id="alexa-keepawake" autoplay loop muted playsinline>
-        <source src="data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJpc29tdm00MQAAAAloZWQzAAAAAG1vb3YAAABsbXZoZAAAAADU7gVw1O4FcAAAA+gAAAAAAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAJuYnRyawAAAC10cmtoAAAAAtU7gVw1O4FcAAAAAQAAAAAAdwAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbWRpYQAAACValidkaGQAAAAA1O4FwNTuBXAAAAAAAQAAAAABVlhgAQAAAC1oZGxyAAAAAAAAAAB2aWRlAAAAAAAAAAAAAAAAVmlkZW9IYW5kbGVyAAAAAWhtZGluZgAAABRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAxtdXJsAAAAAQAAAVRzdGJsAAAAbXN0c2QAAAAAAAAAAQAAAF9tcDR2AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABgAGABjdXJsAAAAAYN0cHRzAAAAFGN0dHMAAAAAAAAAAQAAAAEAAAAsY29scgBwcm9mcHVuYwAAAAAYbWQhdAAAAADU7gVw1O4FcAAAAAAAQAABc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAADwAAAAEAAAAAc3RjbwAAAAAAAAABAAAAMAAAAGd1ZHRhAAAAW21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kcm0AAAAAAAAAAAAAAAAAAAAAADYAaWxzdAAAAC50b28AAAAmZGF0YQAAAAEAAAAATGF2ZiA2MC4zLjEwMCAoR05VKSBsaWJ4MjY0AAAAGHV1dWlkAAAAAAAAAAAAAAAAAAAAAA==" type="video/mp4">
-    </video>
-
-    <div class="split-container">
-        <div class="direction-panel" style="border-right: 2px solid #333;">
-            <div class="panel-header">➔ Stadtmitte / Hbf</div>
-            <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark"></iframe>
-        </div>
-        <div class="direction-panel">
-            <div class="panel-header">➔ Bilk / Benrath</div>
-            <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark"></iframe>
-        </div>
+    <div class="panel">
+        <div class="header">➔ Ratingen / Gerresheim</div>
+        <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Benrath,Uni,Südfriedhof,Merowinger"></iframe>
     </div>
-
-    <script>
-        function forceInteractions() {
-            window.crypto.getRandomValues(new Uint32Array(1)); 
-            setTimeout(forceInteractions, 15000); 
-        }
-        document.addEventListener("DOMContentLoaded", function() {
-            var video = document.getElementById("alexa-keepawake");
-            video.play().catch(function(err) { console.log(err); });
-            forceInteractions();
-        });
-    </script>
+    
+    <div class="panel">
+        <div class="header">➔ Benrath / Uni Ost</div>
+        <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Ratingen,Gerresheim,Spichernplatz,Derendorf"></iframe>
+    </div>
 </body>
 </html>
