@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Düsseldorf Karolingerplatz LED Monitor</title>
+    <style>
+        /* Base styles mimicking a physical, high-contrast amber LED dot-matrix layout */
+        body { 
+            margin: 0; 
+            background: #000; 
+            color: #ff9900; 
+            font-family: 'Courier New', monospace; 
+            overflow: hidden; 
+            display: flex; 
+            height: 100vh; 
+        }
+        .panel { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            border: 1px solid #222; 
+            position: relative;
+        }
+        .header { 
+            text-align: center; 
+            font-size: 1.5rem; 
+            font-weight: bold; 
+            padding: 12px; 
+            border-bottom: 2px solid #ff9900; 
+            background: #000; 
+            letter-spacing: 1px;
+        }
+        .list { 
+            flex: 1; 
+            padding: 20px; 
+            overflow: hidden; 
+        }
+        .row { 
+            font-size: 1.6rem; 
+            font-weight: bold;
+            line-height: 2.2rem;
+            margin-bottom: 12px; 
+            white-space: pre; /* Essential to enforce exact physical space alignment */
+            /* Simulates a retro neon pixel illumination effect */
+            text-shadow: 0 0 1px rgba(255, 153, 0, 0.7); 
+        }
+        /* Bottom informational status bar from the reference photo */
+        .info-bar {
+            border-top: 2px solid #ff9900;
+            padding: 12px 20px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            background: #000;
+            white-space: pre;
+            text-shadow: 0 0 1px rgba(255, 153, 0, 0.7);
+        }
+        .status-msg {
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="panel" style="border-right: 2px solid #ff9900;">
+        <div class="header">➔ RATINGEN / GERRESHEIM</div>
+        <div class="list" id="north-list"><span class="status-msg">LOADING LED MATRIX...</span></div>
+        <div class="info-bar" id="north-ticker">ⓘ SYSTEM READY</div>
+    </div>
+    
+    <div class="panel">
+        <div class="header">➔ BENRATH / UNI OST</div>
+        <div class="list" id="south-list"><span class="status-msg">LOADING LED MATRIX...</span></div>
+        <div class="info-bar" id="south-ticker">ⓘ SYSTEM READY</div>
+    </div>
+
+    <script>
+        // Open proxy wrapper to securely access live timetable nodes
+        const proxyUrl = "https://corsproxy.io/?";
+        const dataFeed = "https://dbf.finalrewind.org/Düsseldorf,Karolingerplatz.json?version=3&efa=VRR";
+        
+        const trackedLines = ["U72", "U73", "704", "705"];
+        const northKeywords = ["ratingen", "gerresheim", "rath", "derendorf", "spichernplatz", "heinrich-heine", "hauptbahnhof", "hbf"];
+
+        // Controls string widths mathematically to mirror real fixed hardware spacing
+        function padString(str, length) {
+            str = str.toString();
+            if (str.length > length) {
+                return str.substring(0, length - 3) + "...";
+            }
+            return str + " ".repeat(length - str.length);
+        }
+
+        function updateClockTicker() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            // Replicates the layout of the bottom row: ⓘ symbol + status text + clock aligned right
+            document.getElementById('north-ticker').innerHTML = `ⓘ TRAM STATUS OK` + timeString.padStart(21, " ");
+            document.getElementById('south-ticker').innerHTML = `ⓘ TRAM STATUS OK` + timeString.padStart(21, " ");
+        }
+
+        async function fetchLiveTimetable() {
+            try {
+                const response = await fetch(proxyUrl + encodeURIComponent(dataFeed));
+                const json = await response.json();
+                const departures = json.departures || json.results;
+
+                if (!departures) return;
+
+                const northList = document.getElementById('north-list');
+                const southList = document.getElementById('south-list');
+                
+                let northHTML = '';
+                let southHTML = '';
+                
+                let northCount = 0;
+                let southCount = 0;
+
+                departures.forEach(tram => {
+                    const lineName = (tram.line || tram.train || "").trim();
+                    let destination = (tram.destination || "").trim();
+                    const destLower = destination.toLowerCase();
+                    
+                    // Clear messy data prefixes for clean display rendering
+                    destination = destination.replace("D-", "").replace("Bf ", "").trim();
+                    
+                    let eta = "now";
+                    if (tram.time) {
+                        eta = tram.time + " min";
+                    } else if (tram.scheduledDeparture && tram.departure) {
+                        const difference = new Date(tram.departure) - new Date();
+                        const calculatedMinutes = Math.max(0, Math.round(difference / 60000));
+                        eta = calculatedMinutes === 0 ? "now" : calculatedMinutes + " min";
+                    }
+
+                    if (trackedLines.includes(lineName)) {
+                        // Custom Spacing Grid: 
+                        // Line (4 slots) + Destination (23 slots) + Time (8 slots right-aligned)
+                        const linePart = padString(lineName, 4);
+                        const destPart = padString(destination, 23);
+                        const timePart = eta.padStart(8, " ");
+
+                        const rowHTML = `<div class="row">${linePart}${destPart}${timePart}</div>`;
+
+                        let headingNorth = false;
+                        northKeywords.forEach(keyword => {
+                            if (destLower.includes(keyword)) headingNorth = true;
+                        });
+
+                        // Caps output rows to perfectly prevent off-screen vertical bleeding
+                        if (headingNorth) {
+                            if (northCount < 10) {
+                                northHTML += rowHTML;
+                                northCount++;
+                            }
+                        } else {
+                            if (southCount < 10) {
+                                southHTML += rowHTML;
+                                southCount++;
+                            }
+                        }
+                    }
+                });
+
+                northList.innerHTML = northHTML || '<div class="row status-msg">NO ACTIVE DEPARTURES</div>';
+                southList.innerHTML = southHTML || '<div class="row status-msg">NO ACTIVE DEPARTURES</div>';
+
+            } catch (err) {
+                console.error("LED Matrix data processing fault:", err);
+            }
+        }
+
+        // Initialize data streams and runtime counters
+        fetchLiveTimetable();
+        updateClockTicker();
+        
+        // Refresh timetable every 30 seconds, update clock precision every second
+        setInterval(fetchLiveTimetable, 30000);
+        setInterval(updateClockTicker, 1000);
+    </script>
+</body>
+</html>
