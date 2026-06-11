@@ -2,188 +2,144 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Düsseldorf Karolingerplatz LED Monitor</title>
+    <title>Karolingerplatz Departures</title>
     <style>
-        body { 
-            margin: 0; 
-            background: #000; 
+        * { box-sizing: border-box; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background-color: #000; 
             color: #ff9900; 
-            font-family: 'Courier New', monospace; 
+            font-family: 'Courier New', Courier, monospace; 
             overflow: hidden; 
-            display: flex; 
-            height: 100vh; 
-        }
-        .panel { 
-            flex: 1; 
             display: flex; 
             flex-direction: column; 
-            border: 1px solid #222; 
-            position: relative;
         }
         .header { 
-            text-align: center; 
-            font-size: 1.5rem; 
-            font-weight: bold; 
-            padding: 12px; 
-            border-bottom: 2px solid #ff9900; 
-            background: #000; 
-            letter-spacing: 1px;
+            display: flex; justify-content: space-between; align-items: center; 
+            font-size: 1.8rem; font-weight: bold; 
+            padding: 15px 20px; border-bottom: 3px solid #ff9900; 
+            background: #000; letter-spacing: 1px; 
         }
-        .list { 
-            flex: 1; 
-            padding: 20px; 
-            overflow: hidden; 
+        .list-container { 
+            flex: 1; padding: 20px; overflow-y: auto; 
         }
+        /* Layout for the 4 columns */
         .row { 
-            font-size: 1.6rem; 
-            font-weight: bold;
-            line-height: 2.2rem;
-            margin-bottom: 12px; 
-            white-space: pre; 
-            text-shadow: 0 0 1px rgba(255, 153, 0, 0.7); 
+            display: flex; justify-content: flex-start; 
+            font-size: 1.5rem; margin-bottom: 15px; 
+            border-bottom: 1px dashed #222; padding-bottom: 6px; 
         }
-        .info-bar {
-            border-top: 2px solid #ff9900;
-            padding: 12px 20px;
-            font-size: 1.4rem;
-            font-weight: bold;
-            background: #000;
-            white-space: pre;
-            text-shadow: 0 0 1px rgba(255, 153, 0, 0.7);
-        }
-        .status-msg {
-            color: #444;
-        }
+        .line { width: 15%; font-weight: bold; }
+        .dest { width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .actual-time { width: 15%; text-align: right; color: #cc7a00; /* Slightly darker amber to distinguish the clock time */ }
+        .countdown { width: 20%; text-align: right; }
+        
+        #alexa-keepawake { position: absolute; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div class="panel" style="border-right: 2px solid #ff9900;">
-        <div class="header">➔ RATINGEN / GERRESHEIM</div>
-        <div class="list" id="north-list"><span class="status-msg">LOADING LED MATRIX...</span></div>
-        <div class="info-bar" id="north-ticker">ⓘ SYSTEM READY</div>
+    <video id="alexa-keepawake" autoplay loop muted playsinline>
+        <source src="data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJpc29tdm00MQAAAAloZWQzAAAAAG1vb3YAAABsbXZoZAAAAADU7gVw1O4FcAAAA+gAAAAAAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAJuYnRyawAAAC10cmtoAAAAAtU7gVw1O4FcAAAAAQAAAAAAdwAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbWRpYQAAACValidkaGQAAAAA1O4FwNTuBXAAAAAAAQAAAAABVlhgAQAAAC1oZGxyAAAAAAAAAAB2aWRlAAAAAAAAAAAAAAAAVmlkZW9IYW5kbGVyAAAAAWhtZGluZgAAABRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAxtdXJsAAAAAQAAAVRzdGJsAAAAbXN0c2QAAAAAAAAAAQAAAF9tcDR2AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABgAGABjdXJsAAAAAYN0cHRzAAAAFGN0dHMAAAAAAAAAAQAAAAEAAAAsY29scgBwcm9mcHVuYwAAAAAYbWQhdAAAAADU7gVw1O4FcAAAAAAAQAABc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAADwAAAAEAAAAAc3RjbwAAAAAAAAABAAAAMAAAAGd1ZHRhAAAAW21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kcm0AAAAAAAAAAAAAAAAAAAAAADYAaWxzdAAAAC50b28AAAAmZGF0YQAAAAEAAAAATGF2ZiA2MC4zLjEwMCAoR05VKSBsaWJ4MjY0AAAAGHV1dWlkAAAAAAAAAAAAAAAAAAAAAA==" type="video/mp4">
+    </video>
+
+    <div class="header">
+        <span>➔ Karolingerplatz Departures</span>
+        <span id="live-clock">00:00:00</span>
     </div>
     
-    <div class="panel">
-        <div class="header">➔ BENRATH / UNI OST</div>
-        <div class="list" id="south-list"><span class="status-msg">LOADING LED MATRIX...</span></div>
-        <div class="info-bar" id="south-ticker">ⓘ SYSTEM READY</div>
+    <div class="list-container" id="tram-list">
+        Fetching live schedule...
     </div>
 
     <script>
+        // Use proxy to securely load JSON data without browser blocks
         const proxyUrl = "https://corsproxy.io/?";
-        const dataFeed = "https://dbf.finalrewind.org/Düsseldorf,Karolingerplatz.json?version=3&efa=VRR";
+        const dbfUrl = "https://dbf.finalrewind.org/Düsseldorf,Karolingerplatz.json?version=3&efa=VRR";
         
-        const trackedLines = ["U72", "U73", "704", "705"];
-        const northKeywords = ["ratingen", "gerresheim", "rath", "derendorf", "spichernplatz", "heinrich-heine", "hauptbahnhof", "hbf"];
+        const targetLines = ["U72", "U73", "704", "705"];
 
-        function padString(str, length) {
-            str = str.toString();
-            if (str.length > length) {
-                return str.substring(0, length - 3) + "...";
-            }
-            return str + " ".repeat(length - str.length);
-        }
-
-        function updateClockTicker() {
+        // Keeps the header clock perfectly updated to the current second
+        function updateHeaderClock() {
             const now = new Date();
-            const timeString = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            document.getElementById('north-ticker').innerHTML = `ⓘ TRAM STATUS OK` + timeString.padStart(21, " ");
-            document.getElementById('south-ticker').innerHTML = `ⓘ TRAM STATUS OK` + timeString.padStart(21, " ");
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
         }
+        setInterval(updateHeaderClock, 1000);
+        updateHeaderClock();
 
-        async function fetchLiveTimetable() {
+        async function fetchTramData() {
             try {
-                const response = await fetch(proxyUrl + encodeURIComponent(dataFeed));
-                const json = await response.json();
-                const departures = json.departures || json.results;
+                const response = await fetch(proxyUrl + encodeURIComponent(dbfUrl));
+                const payload = await response.json();
+                const departures = payload.departures || payload.results;
 
                 if (!departures) return;
 
-                const northList = document.getElementById('north-list');
-                const southList = document.getElementById('south-list');
-                
-                let northHTML = '';
-                let southHTML = '';
-                
-                let northCount = 0;
-                let southCount = 0;
+                const listContainer = document.getElementById('tram-list');
+                listContainer.innerHTML = '';
 
                 departures.forEach(tram => {
-                    const lineName = (tram.line || tram.train || "").trim();
-                    let destination = (tram.destination || "").trim();
-                    const destLower = destination.toLowerCase();
+                    const line = (tram.line || tram.train || "").trim();
+                    const destination = (tram.destination || "").trim();
                     
-                    destination = destination.replace("D-", "").replace("Bf ", "").trim();
-                    
-                    let clockTime = ""; 
-                    let eta = "";
-
-                    // Calculate accurate minutes using real-time estimated vs scheduled data
-                    const timeRef = tram.departure || tram.scheduledDeparture;
-                    
-                    if (timeRef) {
-                        const depDate = new Date(timeRef);
-                        clockTime = depDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    // Only process your requested tram lines
+                    if (targetLines.includes(line)) {
                         
-                        const difference = depDate - new Date();
-                        const calculatedMinutes = Math.max(0, Math.round(difference / 60000));
-                        eta = calculatedMinutes === 0 ? "now" : calculatedMinutes + " min";
-                    } else if (tram.time) {
-                        // Backup fallback if the server only hands over a raw string string
-                        clockTime = tram.time;
-                        eta = tram.time.includes(":") ? "" : tram.time + " min";
-                    }
+                        let countdownStr = "now";
+                        let actualTimeStr = "--:--";
+                        let targetDate = null;
 
-                    // CRITICAL FIX: If the backend wiped the clock time but labeled it "now", 
-                    // we pull the active time straight from your device to display both fields.
-                    if ((!clockTime || clockTime === "now") && (tram.time === "" || !tram.time)) {
-                        const currentDeviceTime = new Date();
-                        clockTime = currentDeviceTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                        eta = "now";
-                    }
-
-                    if (trackedLines.includes(lineName)) {
-                        // Grid Spacing: Line(4) + Clock(7) + Destination(16) + Countdown(8)
-                        const linePart = padString(lineName, 4);
-                        const clockPart = padString(clockTime, 7);
-                        const destPart = padString(destination, 16);
-                        const timePart = eta.padStart(8, " ");
-
-                        const rowHTML = `<div class="row">${linePart}${clockPart}${destPart}${timePart}</div>`;
-
-                        let headingNorth = false;
-                        northKeywords.forEach(keyword => {
-                            if (destLower.includes(keyword)) headingNorth = true;
-                        });
-
-                        if (headingNorth) {
-                            if (northCount < 10) {
-                                northHTML += rowHTML;
-                                northCount++;
-                            }
-                        } else {
-                            if (southCount < 10) {
-                                southHTML += rowHTML;
-                                southCount++;
-                            }
+                        // Parse the actual or scheduled timestamp from the transit backend
+                        if (tram.departure || tram.scheduledDeparture) {
+                            targetDate = new Date(tram.departure || tram.scheduledDeparture);
+                        } else if (tram.time) {
+                            // If only minutes are provided, calculate the target clock time
+                            targetDate = new Date();
+                            targetDate.setMinutes(targetDate.getMinutes() + parseInt(tram.time));
                         }
+
+                        if (targetDate) {
+                            // Format to standard German HH:MM 24-hour time format
+                            actualTimeStr = targetDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                            
+                            // Calculate remaining minutes
+                            const gapMs = targetDate - new Date();
+                            const calculatedMins = Math.max(0, Math.round(gapMs / 60000));
+                            countdownStr = calculatedMins === 0 ? "now" : calculatedMins + " min";
+                        }
+
+                        // Build the 4-column row
+                        const row = `
+                            <div class="row">
+                                <span class="line">${line}</span>
+                                <span class="dest">${destination}</span>
+                                <span class="actual-time">${actualTimeStr}</span>
+                                <span class="countdown">${countdownStr}</span>
+                            </div>
+                        `;
+                        
+                        listContainer.innerHTML += row;
                     }
                 });
 
-                northList.innerHTML = northHTML || '<div class="row status-msg">NO ACTIVE DEPARTURES</div>';
-                southList.innerHTML = southHTML || '<div class="row status-msg">NO ACTIVE DEPARTURES</div>';
+                if (listContainer.innerHTML === '') {
+                    listContainer.innerHTML = '<div class="row">No active trams</div>';
+                }
 
-            } catch (err) {
-                console.error("LED Matrix data processing fault:", err);
+            } catch (error) {
+                console.error("Timetable retrieval fault:", error);
             }
         }
 
-        fetchLiveTimetable();
-        updateClockTicker();
-        
-        setInterval(fetchLiveTimetable, 30000);
-        setInterval(updateClockTicker, 1000);
+        fetchTramData();
+        setInterval(fetchTramData, 30000); // Check for delays and text updates every 30 seconds
+
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("alexa-keepawake").play().catch(e => console.log(e));
+        });
     </script>
 </body>
 </html>
