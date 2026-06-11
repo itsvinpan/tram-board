@@ -42,16 +42,6 @@
             }
         });
 
-        // --- 3. Board Auto-Refresh Logic (FIXED) ---
-        // Use the encoded URL as a strict baseline
-        // Using query parameters for place and name often forces a direct match
-const boardUrl = "https://vrrf.finalrewind.org/?place=Düsseldorf&name=Karolingerplatz&frontend=infoscreen&theme=dark&lines=U72,U73,704,705";
-        
-        setInterval(() => {
-            const board = document.getElementById('departure-board');
-            // Appending a unique timestamp forces Silk to fetch a clean, new page
-            board.src = boardUrl + "&_t=" + Date.now(); 
-        }, 30000); 
     </script>
 </body>
 </html>
