@@ -15,7 +15,7 @@
             <span>➔ Karolingerplatz Departures</span>
             <span id="live-clock">00:00:00</span>
         </div>
-        <iframe id="departure-board" src="https://vrrf.finalrewind.org/Duesseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
+        <iframe id="departure-board" src="https://vrrf.finalrewind.org/?place=Düsseldorf&name=Karolingerplatz&frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
     </div>
 
     <script>
@@ -44,7 +44,8 @@
 
         // --- 3. Board Auto-Refresh Logic (FIXED) ---
         // Use the encoded URL as a strict baseline
-        const boardUrl = "https://vrrf.finalrewind.org/Duesseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705";
+        // Using query parameters for place and name often forces a direct match
+const boardUrl = "https://vrrf.finalrewind.org/?place=Düsseldorf&name=Karolingerplatz&frontend=infoscreen&theme=dark&lines=U72,U73,704,705";
         
         setInterval(() => {
             const board = document.getElementById('departure-board');
