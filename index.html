@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        /* height set to 105vh to allow the slight "swipe up" to hide Silk's address bar */
         body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; display: flex; height: 105vh; }
         .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid #333; }
         .header { display: flex; justify-content: space-between; align-items: center; font-size: 1.5rem; font-weight: bold; padding: 10px 20px; border-bottom: 2px solid #ff9900; }
@@ -16,7 +15,7 @@
             <span>➔ Karolingerplatz Departures</span>
             <span id="live-clock">00:00:00</span>
         </div>
-        <iframe id="departure-board" src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
+        <iframe id="departure-board" src="https://vrrf.finalrewind.org/D%C3%BCsseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
     </div>
 
     <script>
@@ -29,7 +28,7 @@
             document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
         }
         updateClock();
-        setInterval(updateClock, 1000); // Updates the clock every 1 second
+        setInterval(updateClock, 1000);
 
         // --- 2. Tap to Fullscreen Logic ---
         document.body.addEventListener('click', () => {
@@ -43,11 +42,14 @@
             }
         });
 
-        // --- 3. Board Auto-Refresh Logic ---
-        // Refreshes the iframe content every 30 seconds (30000 milliseconds)
+        // --- 3. Board Auto-Refresh Logic (FIXED) ---
+        // Use the encoded URL as a strict baseline
+        const boardUrl = "https://vrrf.finalrewind.org/Duesseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705";
+        
         setInterval(() => {
             const board = document.getElementById('departure-board');
-            board.src = board.src; // Re-assigning the source forces a clean reload
+            // Appending a unique timestamp forces Silk to fetch a clean, new page
+            board.src = boardUrl + "&_t=" + Date.now(); 
         }, 30000); 
     </script>
 </body>
