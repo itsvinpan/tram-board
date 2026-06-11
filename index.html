@@ -5,19 +5,39 @@
     <style>
         body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; overflow: hidden; display: flex; height: 100vh; }
         .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid #333; }
-        .header { text-align: center; font-size: 1.5rem; font-weight: bold; padding: 10px; border-bottom: 2px solid #ff9900; }
-        iframe { flex: 1; border: none; }
+        .header { text-align: center; font-size: 1.5rem; font-weight: bold; padding: 10px; border-bottom: 2px solid #ff9900; background: #000; z-index: 10; }
+        
+        /* This wrapper acts as a window blocker to hide the dropdown menus */
+        .iframe-cutter { 
+            flex: 1; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        
+        /* Pushes the webpage UP by 110 pixels to slide the menus off-screen */
+        iframe { 
+            position: absolute;
+            top: -110px; 
+            left: 0;
+            width: 100%; 
+            height: calc(100% + 110px); 
+            border: none; 
+        }
     </style>
 </head>
 <body>
     <div class="panel">
         <div class="header">➔ Ratingen / Gerresheim</div>
-        <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Benrath,Uni,Südfriedhof,Merowinger"></iframe>
+        <div class="iframe-cutter">
+            <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Benrath,Uni,Südfriedhof,Merowinger"></iframe>
+        </div>
     </div>
     
     <div class="panel">
         <div class="header">➔ Benrath / Uni Ost</div>
-        <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Ratingen,Gerresheim,Spichernplatz,Derendorf"></iframe>
+        <div class="iframe-cutter">
+            <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=app&theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Ratingen,Gerresheim,Spichernplatz,Derendorf"></iframe>
+        </div>
     </div>
 </body>
 </html>
