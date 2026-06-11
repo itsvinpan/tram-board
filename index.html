@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Karolingerplatz Departures</title>
+    <title>Karolingerplatz Live Board</title>
     <style>
         * { box-sizing: border-box; }
         body, html { 
@@ -23,7 +23,6 @@
         .list-container { 
             flex: 1; padding: 20px; overflow-y: auto; 
         }
-        /* Layout for the 4 columns */
         .row { 
             display: flex; justify-content: flex-start; 
             font-size: 1.5rem; margin-bottom: 15px; 
@@ -31,7 +30,7 @@
         }
         .line { width: 15%; font-weight: bold; }
         .dest { width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .actual-time { width: 15%; text-align: right; color: #cc7a00; /* Slightly darker amber to distinguish the clock time */ }
+        .actual-time { width: 15%; text-align: right; color: #cc7a00; }
         .countdown { width: 20%; text-align: right; }
         
         #alexa-keepawake { position: absolute; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
@@ -49,23 +48,20 @@
     </div>
     
     <div class="list-container" id="tram-list">
-        Fetching live schedule...
+        Syncing real-time transit data...
     </div>
 
     <script>
-        // Use proxy to securely load JSON data without browser blocks
         const proxyUrl = "https://corsproxy.io/?";
         const dbfUrl = "https://dbf.finalrewind.org/Düsseldorf,Karolingerplatz.json?version=3&efa=VRR";
-        
         const targetLines = ["U72", "U73", "704", "705"];
 
-        // Keeps the header clock perfectly updated to the current second
         function updateHeaderClock() {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('live-clock').textContent = `${h}:${m}:${s}`;
         }
         setInterval(updateHeaderClock, 1000);
         updateHeaderClock();
@@ -85,33 +81,65 @@
                     const line = (tram.line || tram.train || "").trim();
                     const destination = (tram.destination || "").trim();
                     
-                    // Only process your requested tram lines
                     if (targetLines.includes(line)) {
                         
                         let countdownStr = "now";
                         let actualTimeStr = "--:--";
                         let targetDate = null;
 
-                        // Parse the actual or scheduled timestamp from the transit backend
-                        if (tram.departure || tram.scheduledDeparture) {
-                            targetDate = new Date(tram.departure || tram.scheduledDeparture);
-                        } else if (tram.time) {
-                            // If only minutes are provided, calculate the target clock time
-                            targetDate = new Date();
-                            targetDate.setMinutes(targetDate.getMinutes() + parseInt(tram.time));
+                        // 1. Hunt down the hidden timestamp using all known database keys
+                        let timeStringToParse = null;
+                        const knownKeys = ['realTime', 'rt_dep', 'scheduledTime', 'sched_dep', 'departure', 'scheduledDeparture', 'time'];
+                        for (const key of knownKeys) {
+                            if (tram[key]) {
+                                timeStringToParse = tram[key];
+                                break;
+                            }
                         }
 
-                        if (targetDate) {
-                            // Format to standard German HH:MM 24-hour time format
+                        // Fallback: If they changed the key name again, aggressively scan the raw values for HH:MM format
+                        if (!timeStringToParse) {
+                            for (const key in tram) {
+                                if (typeof tram[key] === 'string' && (tram[key].match(/^\d{1,2}:\d{2}$/) || tram[key].match(/T\d{2}:\d{2}/))) {
+                                    timeStringToParse = tram[key];
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 2. Parse the located time string into a rigid local Date Object
+                        if (timeStringToParse) {
+                            if (/^\d{1,2}:\d{2}$/.test(timeStringToParse)) {
+                                // Maps basic HH:MM outputs (e.g., "22:04") to today's date
+                                let parts = timeStringToParse.split(':');
+                                targetDate = new Date();
+                                targetDate.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+                                
+                                // Midnight wraparound logic (if a train reads 00:15 but it is currently 23:55)
+                                if (targetDate.getTime() < Date.now() - 4 * 3600000) {
+                                    targetDate.setDate(targetDate.getDate() + 1);
+                                }
+                            } else {
+                                // Maps standard ISO formats (e.g., "2026-06-11T22:04:00")
+                                targetDate = new Date(timeStringToParse);
+                            }
+                        } else if (tram.countdown !== undefined) {
+                            // Absolute fallback: Map the minute integer to a date
+                            targetDate = new Date();
+                            targetDate.setMinutes(targetDate.getMinutes() + parseInt(tram.countdown, 10));
+                        }
+
+                        // 3. Format into output variables
+                        if (targetDate && !isNaN(targetDate.getTime())) {
                             actualTimeStr = targetDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
                             
-                            // Calculate remaining minutes
-                            const gapMs = targetDate - new Date();
-                            const calculatedMins = Math.max(0, Math.round(gapMs / 60000));
-                            countdownStr = calculatedMins === 0 ? "now" : calculatedMins + " min";
+                            const gapMs = targetDate.getTime() - Date.now();
+                            const calculatedMins = Math.floor(gapMs / 60000); 
+                            
+                            countdownStr = calculatedMins <= 0 ? "now" : calculatedMins + " min";
                         }
 
-                        // Build the 4-column row
+                        // 4. Print the final row
                         const row = `
                             <div class="row">
                                 <span class="line">${line}</span>
@@ -130,12 +158,12 @@
                 }
 
             } catch (error) {
-                console.error("Timetable retrieval fault:", error);
+                console.error("Data error. Waiting for next cycle:", error);
             }
         }
 
         fetchTramData();
-        setInterval(fetchTramData, 30000); // Check for delays and text updates every 30 seconds
+        setInterval(fetchTramData, 30000); // 30-sec continuous sync interval
 
         document.addEventListener("DOMContentLoaded", function() {
             document.getElementById("alexa-keepawake").play().catch(e => console.log(e));
