@@ -2,159 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Karolingerplatz - Pro Transit Monitor</title>
     <style>
-        * { box-sizing: border-box; }
-        
-        body { 
-            margin: 0; 
-            background: #000; 
-            color: #ff9900; 
-            font-family: 'Courier New', monospace; 
-            overflow: hidden; 
-            display: flex; 
-            height: 100vh; 
-            width: 100vw;
-        }
-        
-        .panel { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            border: 1px solid #222; 
-            height: 100%;
-        }
-        
-        .header { 
-            text-align: center; 
-            font-size: 1.8rem; 
-            font-weight: bold; 
-            padding: 15px; 
-            border-bottom: 2px solid #ff9900; 
-            background: #050505; 
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-        
-        .list { 
-            flex: 1; 
-            padding: 25px 40px; 
-            overflow: hidden; 
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .row { 
-            font-size: 2rem; 
-            font-weight: bold;
-            display: grid;
-            grid-template-columns: 80px 1fr 100px; 
-            gap: 20px;
-            text-shadow: 0 0 2px rgba(255, 153, 0, 0.8);
-            border-bottom: 1px dashed #333;
-            padding-bottom: 8px;
-        }
-        
-        .row:last-child { border-bottom: none; }
-
-        .tram-line { color: #ffcc00; }
-        .tram-dest { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .tram-time { text-align: right; }
-        
-        .info-bar {
-            border-top: 2px solid #ff9900;
-            padding: 15px 40px;
-            font-size: 1.6rem;
-            font-weight: bold;
-            background: #050505;
-            display: flex;
-            justify-content: space-between;
-            text-shadow: 0 0 2px rgba(255, 153, 0, 0.8);
-        }
-
-        .status-ok { color: #00ff00; }
-        .status-error { color: #ff0000; animation: blink 1.5s infinite; }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
+        body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; overflow: hidden; display: flex; height: 100vh; }
+        .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; font-size: 1.5rem; font-weight: bold; padding: 10px 20px; border-bottom: 2px solid #ff9900; }
+        iframe { flex: 1; border: none; }
     </style>
 </head>
 <body>
-
     <div class="panel">
-        <div class="header">➔ Karolingerplatz Departures</div>
-        <div class="list" id="timetable-list">
-            <div class="row" style="grid-template-columns: 1fr; text-align: center; color: #555;">
-                INITIALIZING LED MATRIX...
-            </div>
+        <div class="header">
+            <span>➔ Karolingerplatz Departures</span>
+            <span id="live-clock">00:00:00</span>
         </div>
-        <div class="info-bar">
-            <span id="system-status" class="status-ok">ⓘ SYSTEM ONLINE</span>
-            <span id="clock-ticker">00:00:00</span>
-        </div>
+        <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
     </div>
 
     <script>
-        const dataFeed = "https://dbf.finalrewind.org/Düsseldorf,Karolingerplatz.json?version=3&efa=VRR";
-        const trackedLines = ["U72", "U73", "704", "705"];
-        const maxRows = 15;
-
-        // Clock Loop
+        // Script to update the actual time of day in the header
         function updateClock() {
             const now = new Date();
-            document.getElementById('clock-ticker').innerText = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            requestAnimationFrame(updateClock);
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
         }
-
-        // Universal Time Extraction Engine
-        function extractActualTime(tram) {
-            // Check all known keys that might hold a time value
-            const timeKeys = ['realtimeDeparture', 'scheduledDeparture', 'departure', 'realTime', 'scheduledTime', 'time'];
-            
-            for (const key of timeKeys) {
-                const val = tram[key];
-                if (val == null || val === "") continue;
-
-                if (typeof val === 'string') {
-                    // Match ISO Date (e.g. "2026-06-11T22:18:00+02:00")
-                    if (val.includes('T') || val.includes('-')) {
-                        const d = new Date(val);
-                        if (!isNaN(d.getTime())) return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                    }
-                    // Match "HH:MM" directly
-                    const hmMatch = val.match(/^([01]?\d|2[0-3]):([0-5]\d)/);
-                    if (hmMatch) return `${hmMatch[1].padStart(2, '0')}:${hmMatch[2]}`;
-                    
-                    // Match countdown strings (e.g. "3" meaning 3 minutes)
-                    if (/^\d+$/.test(val)) {
-                        const future = new Date(Date.now() + parseInt(val, 10) * 60000);
-                        return future.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                    }
-                }
-                
-                if (typeof val === 'number') {
-                    // Match countdown integers
-                    if (val < 1000) { 
-                        const future = new Date(Date.now() + val * 60000);
-                        return future.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                    }
-                    // Match Unix epoch timestamps
-                    const d = new Date(val > 1e11 ? val : val * 1000);
-                    if (!isNaN(d.getTime())) return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                }
-            }
-
-            // Absolute Fallback: Deep regex scan of the tram JSON object for an HH:MM string
-            const rawStr = JSON.stringify(tram);
-            const deepMatch = rawStr.match(/([01]?\d|2[0-3]):([0-5]\d)/);
-            if (deepMatch) return `${deepMatch[1].padStart(2, '0')}:${deepMatch[2]}`;
-
-            // If absolutely NO time data exists for this tram, print blanks rather than lying.
-            return "--:--"; 
-        }
-
-        async function fetchLiveTimetable()
+        
+        // Refresh clock every second
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
