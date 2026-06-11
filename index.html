@@ -1,23 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <style>
-        body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; overflow: hidden; display: flex; height: 100vh; }
-        .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid #333; }
-        .header { text-align: center; font-size: 1.5rem; font-weight: bold; padding: 10px; border-bottom: 2px solid #ff9900; }
-        iframe { flex: 1; border: none; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karolingerplatz Departures</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #000;
+      color: #ff9900;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #333;
+    }
+    .panel + .panel {
+      border-left: 2px solid #ff9900;
+    }
+    .header {
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      padding: 10px 6px;
+      border-bottom: 2px solid #ff9900;
+      background: #111;
+      letter-spacing: 0.05em;
+    }
+    iframe {
+      flex: 1;
+      border: none;
+      width: 100%;
+    }
+  </style>
 </head>
 <body>
-    <div class="panel">
-        <div class="header">➔ Ratingen / Gerresheim</div>
-        <iframe src="https://vrrf.finalrewind.org/infoboard/Düsseldorf/Karolingerplatz?theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Benrath,Uni,Südfriedhof,Merowinger"></iframe>
-    </div>
-    
-    <div class="panel">
-        <div class="header">➔ Benrath / Uni Ost</div>
-        <iframe src="https://vrrf.finalrewind.org/infoboard/Düsseldorf/Karolingerplatz?theme=dark&lines=U72,U73,704,705&filter_type=exclusive&rem_u_dest=Ratingen,Gerresheim,Spichernplatz,Derendorf"></iframe>
-    </div>
+
+  <!-- Northbound: towards Ratingen / Gerresheim -->
+  <div class="panel">
+    <div class="header">⬆ Ratingen / Gerresheim</div>
+    <iframe src="https://vrrf.finalrewind.org/infoboard/D%C3%BCsseldorf/Karolingerplatz?theme=dark&lines=U72,U73,704,705&filter_type=exclusive&via=Spichernplatz"></iframe>
+  </div>
+
+  <!-- Southbound: towards Benrath / Uni Ost -->
+  <div class="panel">
+    <div class="header">⬇ Benrath / Uni Ost</div>
+    <iframe src="https://vrrf.finalrewind.org/infoboard/D%C3%BCsseldorf/Karolingerplatz?theme=dark&lines=U72,U73,704,705&filter_type=exclusive&via=Uni"></iframe>
+  </div>
+
 </body>
 </html>
