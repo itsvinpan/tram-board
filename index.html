@@ -6,52 +6,224 @@
   <title>Karolingerplatz Departures</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       background: #000;
       color: #ff9900;
       font-family: 'Courier New', monospace;
       display: flex;
+      flex-direction: column;
       height: 100vh;
       overflow: hidden;
     }
+
+    .panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
     .panel {
       flex: 1;
       display: flex;
       flex-direction: column;
-      border: 1px solid #333;
+      overflow: hidden;
     }
+
     .panel + .panel {
       border-left: 2px solid #ff9900;
     }
+
     .header {
       text-align: center;
-      font-size: 1.4rem;
+      font-size: 1.3rem;
       font-weight: bold;
       padding: 10px 6px;
       border-bottom: 2px solid #ff9900;
       background: #111;
       letter-spacing: 0.05em;
+      flex-shrink: 0;
     }
-    iframe {
+
+    .departure-list {
       flex: 1;
-      border: none;
-      width: 100%;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+
+    .departure-row {
+      display: flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-bottom: 1px solid #222;
+      gap: 10px;
+    }
+
+    .departure-row:hover {
+      background: #111;
+    }
+
+    .line-badge {
+      min-width: 52px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1rem;
+      padding: 2px 6px;
+      border: 1px solid #ff9900;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .destination {
+      flex: 1;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .time {
+      font-size: 1rem;
+      font-weight: bold;
+      min-width: 52px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .time.soon { color: #ff4400; }
+    .time.imminent { color: #ff0000; }
+
+    .status-msg {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .footer-bar {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #444;
+      padding: 4px;
+      border-top: 1px solid #222;
+      flex-shrink: 0;
+    }
+
+    #clock {
+      color: #ff9900;
+      font-size: 0.75rem;
     }
   </style>
 </head>
 <body>
 
-  <!-- Northbound: towards Ratingen / Gerresheim -->
+<div class="panels">
   <div class="panel">
-    <div class="header">⬆ Ratingen / Gerresheim</div>
-    <iframe src="https://vrrf.finalrewind.org/infoboard/D%C3%BCsseldorf/Karolingerplatz?theme=dark&lines=U72,U73,704,705&filter_type=exclusive&via=Spichernplatz"></iframe>
+    <div class="header">⬆ Ratingen / Gerresheim / Derendorf</div>
+    <div class="departure-list" id="north-list"><div class="status-msg">Loading…</div></div>
   </div>
+  <div class="panel">
+    <div class="header">⬇ Benrath / Uni Ost / Südfriedhof</div>
+    <div class="departure-list" id="south-list"><div class="status-msg">Loading…</div></div>
+  </div>
+</div>
 
-  <!-- Southbound: towards Benrath / Uni Ost -->
-  <div class="panel">
-    <div class="header">⬇ Benrath / Uni Ost</div>
-    <iframe src="https://vrrf.finalrewind.org/infoboard/D%C3%BCsseldorf/Karolingerplatz?theme=dark&lines=U72,U73,704,705&filter_type=exclusive&via=Uni"></iframe>
-  </div>
+<div class="footer-bar">
+  Karolingerplatz · <span id="clock"></span> · vrrf.finalrewind.org
+</div>
+
+<script>
+  // Destinations that go NORTH (towards Ratingen, Gerresheim, Spichernplatz, Derendorf)
+  const NORTH_KEYWORDS = [
+    'ratingen', 'gerresheim', 'spichernplatz', 'derendorf',
+    'flughafen', 'terminal', 'messe', 'nord', 'düsseldorf nord',
+    'grafenberg', 'zoo', 'stadtwald'
+  ];
+
+  // Destinations that go SOUTH (towards Benrath, Uni, Südfriedhof, Merowinger)
+  const SOUTH_KEYWORDS = [
+    'benrath', 'uni', 'südfriedhof', 'merowinger', 'bilk',
+    'süd', 'heinrich-heine', 'eller', 'reisholz', 'wersten', 'holthausen'
+  ];
+
+  function classifyDirection(destination) {
+    const d = destination.toLowerCase();
+    for (const kw of NORTH_KEYWORDS) {
+      if (d.includes(kw)) return 'north';
+    }
+    for (const kw of SOUTH_KEYWORDS) {
+      if (d.includes(kw)) return 'south';
+    }
+    return 'unknown';
+  }
+
+  function renderDepartures(containerId, departures) {
+    const el = document.getElementById(containerId);
+    if (!departures || departures.length === 0) {
+      el.innerHTML = '<div class="status-msg">No departures found</div>';
+      return;
+    }
+
+    el.innerHTML = departures.map(d => {
+      const countdown = d.countdown ?? null;
+      const timeStr = countdown === null ? d.time
+                    : countdown === 0    ? 'sofort'
+                    : countdown + ' min';
+
+      let timeClass = 'time';
+      if (countdown !== null && countdown <= 1) timeClass += ' imminent';
+      else if (countdown !== null && countdown <= 4) timeClass += ' soon';
+
+      const line = (d.line || '?').replace(/^(STR|Bus|Tram)\s*/i, '');
+      const dest = d.destination || '?';
+
+      return `<div class="departure-row">
+        <span class="line-badge">${line}</span>
+        <span class="destination">${dest}</span>
+        <span class="${timeClass}">${timeStr}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  async function fetchDepartures() {
+    const url = 'https://vrrf.finalrewind.org/D%C3%BCsseldorf/Karolingerplatz.json?line=U72,U73,704,705';
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const raw = data.raw || [];
+
+      const north = raw.filter(d => classifyDirection(d.destination) === 'north');
+      const south = raw.filter(d => classifyDirection(d.destination) === 'south');
+      const unknown = raw.filter(d => classifyDirection(d.destination) === 'unknown');
+
+      // Append unknowns to both panels so nothing is silently dropped
+      renderDepartures('north-list', [...north, ...unknown]);
+      renderDepartures('south-list', [...south, ...unknown]);
+
+    } catch (err) {
+      const msg = `<div class="status-msg">Error: ${err.message}<br><small>Check browser console for details</small></div>`;
+      document.getElementById('north-list').innerHTML = msg;
+      document.getElementById('south-list').innerHTML = msg;
+    }
+  }
+
+  // Initial load + refresh every 30s
+  fetchDepartures();
+  setInterval(fetchDepartures, 30000);
+
+  // Clock every second
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
 
 </body>
 </html>
