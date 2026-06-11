@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; overflow: hidden; display: flex; height: 100vh; }
+        /* height set to 105vh to allow the slight "swipe up" to hide Silk's address bar */
+        body { margin: 0; background: #000; color: #ff9900; font-family: 'Courier New', monospace; display: flex; height: 105vh; }
         .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid #333; }
         .header { display: flex; justify-content: space-between; align-items: center; font-size: 1.5rem; font-weight: bold; padding: 10px 20px; border-bottom: 2px solid #ff9900; }
         iframe { flex: 1; border: none; }
@@ -15,11 +16,11 @@
             <span>➔ Karolingerplatz Departures</span>
             <span id="live-clock">00:00:00</span>
         </div>
-        <iframe src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
+        <iframe id="departure-board" src="https://vrrf.finalrewind.org/Düsseldorf/Karolingerplatz?frontend=infoscreen&theme=dark&lines=U72,U73,704,705"></iframe>
     </div>
 
     <script>
-        // Script to update the actual time of day in the header
+        // --- 1. Live Clock Logic ---
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -27,10 +28,27 @@
             const seconds = String(now.getSeconds()).padStart(2, '0');
             document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
         }
-        
-        // Refresh clock every second
         updateClock();
-        setInterval(updateClock, 1000);
+        setInterval(updateClock, 1000); // Updates the clock every 1 second
+
+        // --- 2. Tap to Fullscreen Logic ---
+        document.body.addEventListener('click', () => {
+            let elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari/Silk fallback */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 fallback */
+                elem.msRequestFullscreen();
+            }
+        });
+
+        // --- 3. Board Auto-Refresh Logic ---
+        // Refreshes the iframe content every 30 seconds (30000 milliseconds)
+        setInterval(() => {
+            const board = document.getElementById('departure-board');
+            board.src = board.src; // Re-assigning the source forces a clean reload
+        }, 30000); 
     </script>
 </body>
 </html>
