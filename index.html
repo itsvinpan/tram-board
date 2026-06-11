@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Düsseldorf Karolingerplatz LED Monitor</title>
     <style>
-        /* Base styles mimicking a physical, high-contrast amber LED dot-matrix layout */
         body { 
             margin: 0; 
             background: #000; 
@@ -40,11 +39,9 @@
             font-weight: bold;
             line-height: 2.2rem;
             margin-bottom: 12px; 
-            white-space: pre; /* Essential to enforce exact physical space alignment */
-            /* Simulates a retro neon pixel illumination effect */
+            white-space: pre; 
             text-shadow: 0 0 1px rgba(255, 153, 0, 0.7); 
         }
-        /* Bottom informational status bar from the reference photo */
         .info-bar {
             border-top: 2px solid #ff9900;
             padding: 12px 20px;
@@ -74,14 +71,12 @@
     </div>
 
     <script>
-        // Open proxy wrapper to securely access live timetable nodes
         const proxyUrl = "https://corsproxy.io/?";
         const dataFeed = "https://dbf.finalrewind.org/Düsseldorf,Karolingerplatz.json?version=3&efa=VRR";
         
         const trackedLines = ["U72", "U73", "704", "705"];
         const northKeywords = ["ratingen", "gerresheim", "rath", "derendorf", "spichernplatz", "heinrich-heine", "hauptbahnhof", "hbf"];
 
-        // Controls string widths mathematically to mirror real fixed hardware spacing
         function padString(str, length) {
             str = str.toString();
             if (str.length > length) {
@@ -93,8 +88,6 @@
         function updateClockTicker() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            
-            // Replicates the layout of the bottom row: ⓘ symbol + status text + clock aligned right
             document.getElementById('north-ticker').innerHTML = `ⓘ TRAM STATUS OK` + timeString.padStart(21, " ");
             document.getElementById('south-ticker').innerHTML = `ⓘ TRAM STATUS OK` + timeString.padStart(21, " ");
         }
@@ -121,32 +114,37 @@
                     let destination = (tram.destination || "").trim();
                     const destLower = destination.toLowerCase();
                     
-                    // Clear messy data prefixes for clean display rendering
                     destination = destination.replace("D-", "").replace("Bf ", "").trim();
                     
-                    // 1. Extract the actual Scheduled Time (e.g., "14:35")
-                    let clockTime = tram.time || ""; 
-                    if (tram.scheduledDeparture) {
-                        // Parses the ISO timestamp safely into an HH:MM string format
-                        const depDate = new Date(tram.scheduledDeparture);
-                        clockTime = depDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                    }
+                    let clockTime = ""; 
+                    let eta = "";
 
-                    // 2. Extract or calculate the countdown minutes remaining
-                    let eta = "now";
-                    if (tram.time && !tram.scheduledDeparture) {
-                        eta = tram.time + " min";
-                    } else if (tram.scheduledDeparture) {
-                        // Use actual live estimated departure if delayed, otherwise fallback to scheduled
-                        const actualDep = tram.departure ? new Date(tram.departure) : new Date(tram.scheduledDeparture);
-                        const difference = actualDep - new Date();
+                    // Calculate accurate minutes using real-time estimated vs scheduled data
+                    const timeRef = tram.departure || tram.scheduledDeparture;
+                    
+                    if (timeRef) {
+                        const depDate = new Date(timeRef);
+                        clockTime = depDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                        
+                        const difference = depDate - new Date();
                         const calculatedMinutes = Math.max(0, Math.round(difference / 60000));
                         eta = calculatedMinutes === 0 ? "now" : calculatedMinutes + " min";
+                    } else if (tram.time) {
+                        // Backup fallback if the server only hands over a raw string string
+                        clockTime = tram.time;
+                        eta = tram.time.includes(":") ? "" : tram.time + " min";
+                    }
+
+                    // CRITICAL FIX: If the backend wiped the clock time but labeled it "now", 
+                    // we pull the active time straight from your device to display both fields.
+                    if ((!clockTime || clockTime === "now") && (tram.time === "" || !tram.time)) {
+                        const currentDeviceTime = new Date();
+                        clockTime = currentDeviceTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                        eta = "now";
                     }
 
                     if (trackedLines.includes(lineName)) {
-                        // Dynamic Grid Breakdown:
-                        // Line (4 slots) + Time (7 slots) + Destination (16 slots) + Countdown (8 slots right-aligned)
+                        // Grid Spacing: Line(4) + Clock(7) + Destination(16) + Countdown(8)
                         const linePart = padString(lineName, 4);
                         const clockPart = padString(clockTime, 7);
                         const destPart = padString(destination, 16);
@@ -159,7 +157,6 @@
                             if (destLower.includes(keyword)) headingNorth = true;
                         });
 
-                        // Caps output rows to perfectly prevent off-screen vertical bleeding
                         if (headingNorth) {
                             if (northCount < 10) {
                                 northHTML += rowHTML;
@@ -182,11 +179,9 @@
             }
         }
 
-        // Initialize data streams and runtime counters
         fetchLiveTimetable();
         updateClockTicker();
         
-        // Refresh timetable every 30 seconds, update clock precision every second
         setInterval(fetchLiveTimetable, 30000);
         setInterval(updateClockTicker, 1000);
     </script>
